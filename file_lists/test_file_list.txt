@@ -1,0 +1,1 @@
+/home/jaspreet/jaspreet_data/text_data/inputs/fasta/5LOS_A.fasta
