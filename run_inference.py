@@ -29,13 +29,6 @@ print("test_dataset Loaded with ", len(test_set), "proteins")
 # this implementation has only been tested for batch size 1 only.
 test_loader = DataLoader(test_set, batch_size=1, collate_fn=text_collate_fn, num_workers=16)
 
-### final
-path1 = "/home/jaspreet/jaspreet_data/results/project3/classification/bilstm2_both/"
-path2 = "/home/jaspreet/jaspreet_data/results/project3/classification/ms_resnet_both/"
-path3 = "/home/jaspreet/jaspreet_data/results/project3/classification/ms_res_lstm_both/"
-path4 = "/home/jaspreet/jaspreet_data/results/project3/regression/bilstm_all_again/"
-path5 = "/home/jaspreet/jaspreet_data/results/project3/regression/ms_resnet_all/"
-path6 = "/home/jaspreet/jaspreet_data/results/project3/regression/ms_res_lstm_all_again/"
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -47,12 +40,12 @@ model4 = Network4()
 model5 = Network5()
 model6 = Network6()
 
-model1.load_state_dict(torch.load(path1 + "best_checkpoint.pt"))
-model2.load_state_dict(torch.load(path2 + "best_checkpoint.pt"))
-model3.load_state_dict(torch.load(path3 + "best_checkpoint.pt"))
-model4.load_state_dict(torch.load(path4 + "best_checkpoint.pt"))
-model5.load_state_dict(torch.load(path5 + "best_checkpoint.pt"))
-model6.load_state_dict(torch.load(path6 + "best_checkpoint.pt"))
+model1.load_state_dict(torch.load("checkpoints/model1.pt"))
+model2.load_state_dict(torch.load("checkpoints/model2.pt"))
+model3.load_state_dict(torch.load("checkpoints/model3.pt"))
+model4.load_state_dict(torch.load("checkpoints/model4.pt"))
+model5.load_state_dict(torch.load("checkpoints/model5.pt"))
+model6.load_state_dict(torch.load("checkpoints/model6.pt"))
 
 model1 = model1.to(args.device)
 model2 = model2.to(args.device)
