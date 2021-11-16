@@ -50,11 +50,15 @@ Execute
 ----
 To run SPOT-Contact-Single use the following command
 
-`bash run_SPOT-1D-LM.sh file_list/test_file_list.txt cpu cpu cpu` to run model, ESM-1b and ProtTrans on cpu
+`bash run_SPOT-1D-LM.sh file_lists/test_file_list.txt cpu cpu cpu` to run model, ESM-1b and ProtTrans on cpu
+
 or 
-`bash run_SPOT-1D-LM.sh file_list/test_file_list.txt cuda:0 cpu cpu` to run model on gpu and, ESM-1b and ProtTrans on cpu
+
+`bash run_SPOT-1D-LM.sh file_lists/test_file_list.txt cuda:0 cpu cpu` to run model on gpu and, ESM-1b and ProtTrans on cpu
+
 or
-`bash run_SPOT-1D-LM.sh file_list/test_file_list.txt cuda:0 cuda:1 cuda:2` to run model, ESM-1b and ProtTrans on gpu
+
+`bash run_SPOT-1D-LM.sh file_lists/test_file_list.txt cuda:0 cuda:1 cuda:2` to run model, ESM-1b and ProtTrans on gpu
 
 Citation Guide
 ----
