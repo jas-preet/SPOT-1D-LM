@@ -28,7 +28,7 @@ To download the model check points from the dropbox use the following commands i
 To install the dependencies and create a conda environment use the following commands
 
 5. `conda create -n spot_1d_lm python=3.7`
-6. `conda activate spot_contact_sgl`
+6. `conda activate spot_1d_lm`
 
 if GPU computer:
 7. `conda install pytorch==1.7.0 torchvision==0.7.0 cudatoolkit=10.1 -c pytorch`
