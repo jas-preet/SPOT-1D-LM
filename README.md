@@ -5,7 +5,7 @@ System Requirments
 ----
 
 **Hardware Requirments:**
-SPOT-Contact-single predictor has been tested on standard ubuntu 18 computer with approximately 32 GB RAM to support the in-memory operations.
+SPOT-1D-LM predictor has been tested on standard ubuntu 18 computer with approximately 32 GB RAM to support the in-memory operations.
 
 * [Python3.7](https://docs.python-guide.org/starting/install3/linux/)
 * [Anaconda](https://anaconda.org/anaconda/virtualenv)
@@ -15,7 +15,7 @@ SPOT-Contact-single predictor has been tested on standard ubuntu 18 computer wit
 Installation
 ----
 
-To install SPOT-Contact-Single and it's dependencies following commands can be used in terminal:
+To install SPOT-1D-LM and it's dependencies following commands can be used in terminal:
 
 1. `git clone https://github.com/jas-preet/SPOT-1D-LM.git`
 2. `cd SPOT-1D-LM`
@@ -48,13 +48,13 @@ for CPU only
 
 Execute
 ----
-To run SPOT-Contact-Single use the following command
+To run SPOT-1D-LM use the following command
 
 `bash run_SPOT-1D-LM.sh file_lists/test_file_list.txt cpu cpu cpu` to run model, ESM-1b and ProtTrans on cpu
 
 or 
 
-`bash run_SPOT-1D-LM.sh file_lists/test_file_list.txt cuda:0 cpu cpu` to run model on gpu and, ESM-1b and ProtTrans on cpu
+`bash run_SPOT-1D-LM.sh file_lists/test_file_list.txt cpu cpu cuda:0` to run model on gpu and, ESM-1b and ProtTrans on cpu
 
 or
 
