@@ -1,10 +1,10 @@
 # SPOT-1D-LM
 SPOT-1D-LM: Reaching Alignment-profile-based Accuracy in Predicting Protein Secondary and Tertiary Structural Properties without Alignment.
 
-System Requirments
+System Requirements
 ----
 
-**Hardware Requirments:**
+**Hardware Requirements:**
 SPOT-1D-LM predictor has been tested on standard ubuntu 18 computer with approximately 32 GB RAM to support the in-memory operations.
 
 * [Python3.7](https://docs.python-guide.org/starting/install3/linux/)
