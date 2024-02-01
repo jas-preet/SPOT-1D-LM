@@ -22,7 +22,7 @@ To install SPOT-1D-LM and it's dependencies following commands can be used in te
 
 To download the model check points from the dropbox use the following commands in the terminal:
 
-3. `wget https://servers.sparks-lab.org/downloads/SPOT-LM-checkpoints.xz`
+3. `wget https://apisz.sparks-lab.org:8443/downloads/Resource/Protein/2_Protein_local_structure_prediction/SPOT-LM-checkpoints.xz`
 4. `tar -xvf SPOT-LM-checkpoints.xz`
 
 To install the dependencies and create a conda environment use the following commands
