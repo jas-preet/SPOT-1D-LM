@@ -14,6 +14,7 @@ SPOT-1D-LM predicts per-residue structural properties from a protein sequence. I
 - [Dataset](#dataset)
 - [Tests](#tests)
 - [Citation](#citation)
+- [License](#license)
 
 ## Requirements
 
@@ -110,3 +111,7 @@ pytest
 Singh J, Paliwal K, Litfin T, Singh J, Zhou Y. Reaching alignment-profile-based accuracy in predicting protein secondary and tertiary structural properties without alignment. *Scientific Reports*. 2022;12:7607. [doi:10.1038/s41598-022-11684-w](https://doi.org/10.1038/s41598-022-11684-w)
 
 Please also cite [ESM-1b](https://github.com/facebookresearch/esm) and [ProtTrans](https://github.com/agemagician/ProtTrans), which provide the input embeddings.
+
+## License
+
+[MIT](LICENSE)
