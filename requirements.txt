@@ -1,0 +1,8 @@
+fair-esm
+numpy
+pandas
+protobuf
+sentencepiece
+torch>=2.5
+tqdm
+transformers<5
