@@ -1,55 +1,62 @@
-import time
-start_time = time.time()
-import re
-import torch
 import argparse
+import os
+import re
+import sys
+
 import numpy as np
+import torch
 from tqdm import tqdm
-from transformers import T5EncoderModel, T5Tokenizer
-from dataset.data_functions import read_list, read_fasta_file
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--file_list', default='', type=str, help='file list path ')
-parser.add_argument('--device', default='cpu', type=str,help=' define the device you want the ')
-args = parser.parse_args()
+from dataset.data_functions import (INPUTS_DIR, check_device, embedding_path, load_proteins,
+                                    protein_name)
 
-
-tokenizer = T5Tokenizer.from_pretrained("Rostlab/prot_t5_xl_uniref50", do_lower_case=False)
-model = T5EncoderModel.from_pretrained("Rostlab/prot_t5_xl_uniref50")
-
-device = torch.device(args.device)
-
-model = model.to(args.device)
-model = model.eval()
-
-prot_list = read_list(args.file_list)
+MODEL_NAME = "Rostlab/prot_t5_xl_uniref50"
+# ProtT5 has no token for these. Left in, adjacent ones merge into a single token.
+NON_STANDARD_RESIDUES = re.compile(r"[^ACDEFGHIKLMNPQRSTVWY]")
 
 
-for prot_path in tqdm(prot_list):
-    seq = read_fasta_file(prot_path)
-    prot_name = prot_path.split('/')[-1].split('.')[0]
+def parse_args():
+    parser = argparse.ArgumentParser(description="Generate ProtTrans (ProtT5-XL) embeddings.")
+    parser.add_argument('--file_list', required=True, type=str,
+                        help='text file listing one FASTA file path per line')
+    parser.add_argument('--device', default='cpu', type=str,
+                        help='device to run ProtT5 on, such as cpu or cuda:0 (default: %(default)s)')
+    return parser.parse_args()
 
 
-    seq_temp = seq.replace('', " ")
-    sequences_Example = [seq_temp]
-    sequences_Example = [re.sub(r"[UZOB]", "X", sequence) for sequence in sequences_Example]
-    ids = tokenizer.batch_encode_plus(sequences_Example, add_special_tokens=True, padding=True)
+def load_model(device):
+    from transformers import T5EncoderModel, T5Tokenizer
 
-    input_ids = torch.tensor(ids['input_ids']).to(args.device)
-    attention_mask = torch.tensor(ids['attention_mask']).to(args.device)
-    with torch.no_grad():
-        embedding = model(input_ids=input_ids, attention_mask=attention_mask)
+    tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME, do_lower_case=False)
+    model = T5EncoderModel.from_pretrained(MODEL_NAME)
+    return tokenizer, model.to(device).eval()
 
-    if args.device == "cpu":
-        embedding = embedding.last_hidden_state.numpy()
-    else:
-        embedding = embedding.last_hidden_state.cpu().numpy()
 
-    features = []
-    for seq_num in range(len(embedding)):
-        seq_len = (attention_mask[seq_num] == 1).sum()
-        seq_emd = embedding[seq_num][:seq_len - 1]
-        features.append(seq_emd)
+def main():
+    args = parse_args()
+    check_device(args.device)
+    proteins = load_proteins(args.file_list)
 
-    np.save("inputs/" + prot_name + "_pt.npy", features[0])
-print(" ProtTrans embeddings generation completed ... ")
+    os.makedirs(INPUTS_DIR, exist_ok=True)
+    tokenizer, model = load_model(args.device)
+
+    for prot_path, seq in tqdm(proteins):
+        spaced_seq = NON_STANDARD_RESIDUES.sub("X", seq).replace('', " ")
+        ids = tokenizer.batch_encode_plus([spaced_seq], add_special_tokens=True, padding=True)
+
+        if len(ids['input_ids'][0]) != len(seq) + 1:
+            sys.exit(f'error: {prot_path}: ProtT5 tokens do not line up with the residues')
+
+        input_ids = torch.tensor(ids['input_ids']).to(args.device)
+        attention_mask = torch.tensor(ids['attention_mask']).to(args.device)
+        with torch.no_grad():
+            embedding = model(input_ids=input_ids, attention_mask=attention_mask)
+
+        # The final position holds the end-of-sequence token
+        features = embedding.last_hidden_state[0, :len(seq)].cpu().numpy()
+        np.save(embedding_path(protein_name(prot_path), "pt"), features)
+    print(" ProtTrans embeddings generation completed ... ")
+
+
+if __name__ == '__main__':
+    main()

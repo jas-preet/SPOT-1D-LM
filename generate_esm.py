@@ -1,41 +1,60 @@
-import time
-import os.path
-import torch
 import argparse
+import os
+import re
+import sys
+
 import numpy as np
+import torch
 from tqdm import tqdm
-from dataset.data_functions import read_list, read_fasta_file
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--file_list', default='', type=str, help='file list path ')
-parser.add_argument('--device', default='cpu', type=str,help=' define the device you want the ')
-args = parser.parse_args()
+from dataset.data_functions import (INPUTS_DIR, check_device, embedding_path, load_proteins,
+                                    protein_name)
 
-model, alphabet = torch.hub.load("facebookresearch/esm", "esm1b_t33_650M_UR50S")
-batch_converter = alphabet.get_batch_converter()
-model = model.to(args.device)
-
-prot_list = read_list(args.file_list)
+# ESM-1b has 1024 positions, two of which hold the start and end tokens
+ESM_MAX_RESIDUES = 1022
+# Letters ESM-1b cannot encode, such as J, are treated as unknown
+OUTSIDE_ESM_ALPHABET = re.compile(r"[^LAGVSERTIDPKQNFYMHWCXBUZO.-]")
 
 
-for prot_path in tqdm(prot_list):
+def parse_args():
+    parser = argparse.ArgumentParser(description="Generate ESM-1b embeddings.")
+    parser.add_argument('--file_list', required=True, type=str,
+                        help='text file listing one FASTA file path per line')
+    parser.add_argument('--device', default='cpu', type=str,
+                        help='device to run ESM-1b on, such as cpu or cuda:0 (default: %(default)s)')
+    return parser.parse_args()
 
-    prot_name = prot_path.split('/')[-1].split('.')[0]
-    save_path = "inputs/" + prot_name + "_esm.npy"
-    seq = read_fasta_file(prot_path)
-    data = [(prot_name, seq)]
 
-    batch_labels, batch_strs, batch_tokens = batch_converter(data)
-    batch_tokens = batch_tokens.to(args.device)
-    with torch.no_grad():
-        results = model(batch_tokens, repr_layers=[33], return_contacts=True)
-    token_representations = results["representations"][33]
+def load_model(device):
+    import esm
 
-    sequence_representations = []
-    for i, (prot_n, seq) in enumerate(data):
-        if args.device == "cpu":
-            save_arr = token_representations[i, 1: len(seq) + 1].numpy()
-        else:
-            save_arr = token_representations[i, 1: len(seq) + 1].cpu().numpy()
-        np.save(save_path, save_arr)
-print(" ESM-1b embeddings generation completed ... ")
+    # The ESM-1b checkpoint stores its settings as a Namespace, which PyTorch refuses by default
+    with torch.serialization.safe_globals([argparse.Namespace]):
+        model, alphabet = esm.pretrained.esm1b_t33_650M_UR50S()
+    return model.to(device).eval(), alphabet.get_batch_converter()
+
+
+def main():
+    args = parse_args()
+    check_device(args.device)
+    proteins = load_proteins(args.file_list)
+    too_long = [path for path, seq in proteins if len(seq) > ESM_MAX_RESIDUES]
+    if too_long:
+        sys.exit(f'error: ESM-1b accepts up to {ESM_MAX_RESIDUES} residues, these are longer:\n  '
+                 + '\n  '.join(too_long))
+
+    os.makedirs(INPUTS_DIR, exist_ok=True)
+    model, batch_converter = load_model(args.device)
+
+    for prot_path, seq in tqdm(proteins):
+        prot_name = protein_name(prot_path)
+        _, _, batch_tokens = batch_converter([(prot_name, OUTSIDE_ESM_ALPHABET.sub("X", seq))])
+        with torch.no_grad():
+            results = model(batch_tokens.to(args.device), repr_layers=[33])
+        embedding = results["representations"][33][0, 1: len(seq) + 1].cpu().numpy()
+        np.save(embedding_path(prot_name, "esm"), embedding)
+    print(" ESM-1b embeddings generation completed ... ")
+
+
+if __name__ == '__main__':
+    main()

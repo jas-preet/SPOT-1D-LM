@@ -1,56 +1,26 @@
-import os
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from torch.utils.data import Dataset
-from dataset.data_functions import one_hot, read_list, read_fasta_file
 
-# def one_hot(seq):
-#     RNN_seq = seq
-#     BASES = 'ARNDCQEGHILKMFPSTWYV'
-#     bases = np.array([base for base in BASES])
-#     feat = np.concatenate(
-#         [[(bases == base.upper()).astype(int)] if str(base).upper() in BASES else np.array([[-1] * len(BASES)]) for base
-#          in RNN_seq])
-#
-#     return feat
-#
-#
-# def read_list(file_name):
-#     '''
-#     returns list of proteins from file
-#     '''
-#     with open(file_name, 'r') as f:
-#         text = f.read().splitlines()
-#     return text
-#
-#
-# def read_fasta_file(fname):
-#     """
-#     reads the sequence from the fasta file
-#     :param fname: filename (string)
-#     :return: protein sequence  (string)
-#     """
-#     with open(fname, 'r') as f:
-#         AA = ''.join(f.read().splitlines()[1:])
-#     return AA
-#
+from dataset.data_functions import embedding_path, one_hot, protein_name, read_fasta_file
+
 
 class Proteins_Dataset(Dataset):
-    def __init__(self, list):
-        self.protein_list = read_list(list)
+    def __init__(self, protein_list):
+        self.protein_list = protein_list
 
     def __len__(self):
         return len(self.protein_list)
 
     def __getitem__(self, idx):
         prot_path = self.protein_list[idx]
-        protein = prot_path.split('/')[-1].split('.')[0]
+        protein = protein_name(prot_path)
 
         seq = read_fasta_file(prot_path)
         one_hot_enc = one_hot(seq)
-        embedding1 = np.load(os.path.join("inputs/", protein + "_esm.npy"))
-        embedding2 = np.load(os.path.join("inputs/", protein + "_pt.npy"))
+        embedding1 = np.load(embedding_path(protein, "esm"))
+        embedding2 = np.load(embedding_path(protein, "pt"))
 
         features = np.concatenate((one_hot_enc, embedding1, embedding2), axis=1)
 

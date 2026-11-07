@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Downloaded checkpoints and data
+checkpoints/
+spot_1d_lm/
+spot_1d_lm.tar.gz
+
+# Generated files, apart from the 5LOS_A example
+inputs/*.npy
+!inputs/5LOS_A_esm.npy
+!inputs/5LOS_A_pt.npy
+results/*
+!results/5LOS_A.csv

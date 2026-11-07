@@ -1,64 +1,115 @@
-import time
-import torch
 import argparse
+import os
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
 from torch.utils.data import DataLoader
-# from config import PATH, LIST, VAL_LIST, TEST_LIST, TEST2_LIST, TEST3_LIST, TEST4_LIST, IGNORE_LABEL, DEVICE
 
+from dataset.data_functions import check_device, embedding_path, load_proteins, protein_name
 from dataset.dataset_inference import Proteins_Dataset, text_collate_fn
-
-
-from models.bilstm import Network
-from models.ms_resnet import Network as Network2
-from models.ms_res_lstm import Network as Network3
+from main import main_class, main_reg, write_csv
+from models.bilstm import Network as Network1
 from models.bilstm_reg import Network as Network4
-from models.ms_resnet_reg import Network as Network5
+from models.ms_res_lstm import Network as Network3
 from models.ms_res_lstm_reg import Network as Network6
+from models.ms_resnet import Network as Network2
+from models.ms_resnet_reg import Network as Network5
 
-from main import main_reg, main_class, write_csv
+REPO_DIR = Path(__file__).resolve().parent
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--file_list', default='', type=str, help='file list path ')
-parser.add_argument('--device', default='cpu', type=str,help=' define the device you want the ')
-parser.add_argument('--save_path', default='results/', type=str,help=' define the device you want the ')
-args = parser.parse_args()
-
-
-
-test_set = Proteins_Dataset(args.file_list)  ## spot-1d test set
-print("test_dataset Loaded with ", len(test_set), "proteins")
-# this implementation has only been tested for batch size 1 only.
-test_loader = DataLoader(test_set, batch_size=1, collate_fn=text_collate_fn, num_workers=16)
+CLASS_ENSEMBLE = ((Network1, 'model1.pt'), (Network2, 'model2.pt'), (Network3, 'model3.pt'))
+REG_ENSEMBLE = ((Network4, 'model4.pt'), (Network5, 'model5.pt'), (Network6, 'model6.pt'))
+EMBEDDING_WIDTHS = {'esm': 1280, 'pt': 1024}
 
 
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-
-model1 = Network()
-model2 = Network2()
-model3 = Network3()
-model4 = Network4()
-model5 = Network5()
-model6 = Network6()
-
-model1.load_state_dict(torch.load("checkpoints/model1.pt", map_location=torch.device('cpu')))
-model2.load_state_dict(torch.load("checkpoints/model2.pt", map_location=torch.device('cpu')))
-model3.load_state_dict(torch.load("checkpoints/model3.pt",map_location=torch.device('cpu')))
-model4.load_state_dict(torch.load("checkpoints/model4.pt",map_location=torch.device('cpu')))
-model5.load_state_dict(torch.load("checkpoints/model5.pt",map_location=torch.device('cpu')))
-model6.load_state_dict(torch.load("checkpoints/model6.pt",map_location=torch.device('cpu')))
-
-model1 = model1.to(args.device)
-model2 = model2.to(args.device)
-model3 = model3.to(args.device)
-model4 = model4.to(args.device)
-model5 = model5.to(args.device)
-model6 = model6.to(args.device)
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Predict protein structural properties from ESM-1b and ProtTrans embeddings.")
+    parser.add_argument('--file_list', required=True, type=str,
+                        help='text file listing one FASTA file path per line')
+    parser.add_argument('--device', default='cpu', type=str,
+                        help='device to run the models on, such as cpu or cuda:0 (default: %(default)s)')
+    parser.add_argument('--save_path', default='results/', type=str,
+                        help='output directory, created if needed (default: %(default)s)')
+    parser.add_argument('--checkpoints_dir', default=REPO_DIR / 'checkpoints', type=Path,
+                        help='directory holding model1.pt to model6.pt '
+                             '(default: checkpoints/ next to this script)')
+    parser.add_argument('--check_only', action='store_true',
+                        help='check everything except the embeddings, then exit without predicting')
+    return parser.parse_args()
 
 
-class_out = main_class(test_loader, model1, model2, model3, args.device)
-names, seq, ss3_pred_list, ss8_pred_list, ss3_prob_list, ss8_prob_list = class_out
-reg_out = main_reg(test_loader, model4, model5, model6, args.device)
-psi_list, phi_list, theta_list, tau_list, hseu_list, hsed_list, cn_list, asa_list = reg_out
-print(len(ss3_pred_list), len(psi_list))
-write_csv(class_out, reg_out, args.save_path)
+def check_embeddings(proteins):
+    for path, seq in proteins:
+        for kind, width in EMBEDDING_WIDTHS.items():
+            embedding = embedding_path(protein_name(path), kind)
+            if not embedding.is_file():
+                sys.exit(f'error: missing embedding {embedding}, '
+                         'generate it with run_SPOT-1D-LM.sh')
+            try:
+                shape = np.load(embedding, mmap_mode='r').shape
+            except (OSError, ValueError) as error:
+                sys.exit(f'error: cannot read {embedding} ({error}), '
+                         'regenerate it with run_SPOT-1D-LM.sh')
+            if shape != (len(seq), width):
+                sys.exit(f'error: {embedding} has shape {shape} but {path} needs '
+                         f'{(len(seq), width)}, regenerate it with run_SPOT-1D-LM.sh')
 
+
+def check_inputs(args):
+    """Report anything that would stop the run before spending time on the models."""
+    check_device(args.device)
+
+    missing = [str(args.checkpoints_dir / filename)
+               for _, filename in CLASS_ENSEMBLE + REG_ENSEMBLE
+               if not (args.checkpoints_dir / filename).is_file()]
+    if missing:
+        sys.exit('error: missing model checkpoints (see "Installation" in the README):\n  '
+                 + '\n  '.join(missing))
+
+    proteins = load_proteins(args.file_list)
+    if not args.check_only:
+        check_embeddings(proteins)
+    try:
+        os.makedirs(args.save_path, exist_ok=True)
+    except OSError as error:
+        sys.exit(f'error: {error}')
+    if not os.access(args.save_path, os.W_OK):
+        sys.exit(f'error: cannot write to {args.save_path}')
+    return [path for path, _ in proteins]
+
+
+def load_ensemble(ensemble, checkpoints_dir, device):
+    models = []
+    for network, filename in ensemble:
+        model = network()
+        model.load_state_dict(torch.load(checkpoints_dir / filename, map_location='cpu',
+                                         weights_only=True))
+        models.append(model.to(device))
+    return models
+
+
+def main():
+    args = parse_args()
+    path_list = check_inputs(args)
+    if args.check_only:
+        return
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    # batch_size must stay 1: this implementation has only been tested with single proteins
+    loader = DataLoader(Proteins_Dataset(path_list), batch_size=1, collate_fn=text_collate_fn)
+
+    # Each ensemble is released before the next is loaded to keep peak memory down
+    class_out = main_class(loader, *load_ensemble(CLASS_ENSEMBLE, args.checkpoints_dir, args.device),
+                           args.device)
+    reg_out = main_reg(loader, *load_ensemble(REG_ENSEMBLE, args.checkpoints_dir, args.device),
+                       args.device)
+    write_csv(class_out, reg_out, args.save_path)
+
+
+if __name__ == '__main__':
+    main()
