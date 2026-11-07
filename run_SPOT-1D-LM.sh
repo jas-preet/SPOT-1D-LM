@@ -8,6 +8,8 @@ fi
 
 here="$(cd "$(dirname "$0")" && pwd)"
 
+# Catch problems with the prediction step before the slow embedding steps
+python "$here/run_inference.py" --file_list "$1" --device "$4" --check_only
 python "$here/generate_esm.py" --file_list "$1" --device "$2"
 python "$here/generate_prottrans.py" --file_list "$1" --device "$3"
 python "$here/run_inference.py" --file_list "$1" --device "$4"

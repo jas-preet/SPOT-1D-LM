@@ -36,6 +36,14 @@ def test_esm_treats_letters_outside_its_alphabet_as_unknown(run_script, make_lis
     assert np.load(install / "inputs" / "j_esm.npy").shape == (5, 1280)
 
 
+def test_prottrans_keeps_residues_aligned_with_adjacent_unknown_letters(run_script, make_list, install):
+    result = run_script("generate_prottrans.py", "--file_list", make_list({"jj.fasta": ">j\nMKJJVA\n"}))
+    assert result.returncode == 0, result.stderr
+    embedding = np.load(install / "inputs" / "jj_pt.npy")
+    assert embedding.shape == (6, 1024)
+    assert (embedding == 1).all(), "the end-of-sequence row must not be kept"
+
+
 def test_esm_rejects_sequences_over_its_limit_by_name(run_script, make_list):
     fasta = ">long\n" + "A" * 1023 + "\n"
     result = run_script("generate_esm.py", "--file_list", make_list({"long.fasta": fasta}))
@@ -62,6 +70,13 @@ def test_pipeline_stops_at_the_first_failure(run_script, make_list, tmp_path):
     result = run_script("run_SPOT-1D-LM.sh", file_list, "banana", "cpu", "cpu", cwd=tmp_path)
     assert result.returncode != 0
     assert not (tmp_path / "results" / "pipe2.csv").exists()
+
+
+def test_pipeline_checks_prediction_step_before_generating_embeddings(run_script, make_list, install, tmp_path):
+    file_list = make_list({"early.fasta": ">p\nMKVLA\n"})
+    result = run_script("run_SPOT-1D-LM.sh", file_list, "cpu", "cpu", "banana", cwd=tmp_path)
+    assert result.returncode != 0
+    assert not (install / "inputs" / "early_esm.npy").exists()
 
 
 def test_pipeline_explains_its_arguments(run_script):

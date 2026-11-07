@@ -65,6 +65,11 @@ def load_proteins(file_list):
         sys.exit(f'error: {error}')
     if not proteins:
         sys.exit(f'error: {file_list} does not list any FASTA files')
+
+    names = [protein_name(path) for path, _ in proteins]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        sys.exit(f'error: duplicate protein names in {file_list}: {", ".join(duplicates)}')
     return proteins
 
 

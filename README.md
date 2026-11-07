@@ -52,7 +52,7 @@ bash run_SPOT-1D-LM.sh file_lists/test_file_list.txt cpu cpu cuda:0        # onl
 bash run_SPOT-1D-LM.sh file_lists/test_file_list.txt cuda:0 cuda:1 cuda:2  # everything on GPU
 ```
 
-Embeddings are saved in `inputs/` and results in `results/`. The file list has one FASTA path per line, and each FASTA file must contain one sequence. Lower-case letters are accepted, a trailing `*` is removed, and residues other than the 20 standard amino acids are treated as unknown.
+Embeddings are saved in `inputs/` and results in `results/`. The file list has one FASTA path per line, and each FASTA file must contain one sequence. Lower-case letters are accepted, a trailing `*` is removed, and each model encodes residues other than the 20 standard amino acids as unknown or ambiguous. Proteins are identified by FASTA file name, so names in a list must be unique.
 
 To try the prediction step without the language models, use the embeddings included for `5LOS_A`:
 
@@ -84,6 +84,7 @@ Unknown residues have no reference surface area, so their `ASA` value (between 0
 ## Limitations
 
 - ESM-1b accepts up to 1,022 residues, so longer sequences are rejected.
+- If you change a sequence, rerun `run_SPOT-1D-LM.sh`. On its own, `run_inference.py` only detects old embeddings when the length has changed.
 - Proteins are processed one at a time, because this implementation has only been tested with a batch size of 1.
 - The training code is not available.
 

@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import sys
 
 import numpy as np
 import torch
@@ -10,6 +11,8 @@ from dataset.data_functions import (INPUTS_DIR, check_device, embedding_path, lo
                                     protein_name)
 
 MODEL_NAME = "Rostlab/prot_t5_xl_uniref50"
+# ProtT5 has no token for these. Left in, adjacent ones merge into a single token.
+NON_STANDARD_RESIDUES = re.compile(r"[^ACDEFGHIKLMNPQRSTVWY]")
 
 
 def parse_args():
@@ -38,8 +41,11 @@ def main():
     tokenizer, model = load_model(args.device)
 
     for prot_path, seq in tqdm(proteins):
-        spaced_seq = re.sub(r"[UZOB]", "X", seq.replace('', " "))
+        spaced_seq = NON_STANDARD_RESIDUES.sub("X", seq).replace('', " ")
         ids = tokenizer.batch_encode_plus([spaced_seq], add_special_tokens=True, padding=True)
+
+        if len(ids['input_ids'][0]) != len(seq) + 1:
+            sys.exit(f'error: {prot_path}: ProtT5 tokens do not line up with the residues')
 
         input_ids = torch.tensor(ids['input_ids']).to(args.device)
         attention_mask = torch.tensor(ids['attention_mask']).to(args.device)

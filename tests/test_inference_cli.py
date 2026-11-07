@@ -140,10 +140,47 @@ def test_reports_missing_embeddings(run_script, make_list):
     assert_clean_failure(result, "noembed_esm.npy")
 
 
-def test_reports_embeddings_from_a_different_sequence(run_script, make_list, write_embeddings):
+def test_reports_embeddings_of_a_different_length(run_script, make_list, write_embeddings):
     write_embeddings("stale", 9)
     result = run_script("run_inference.py", "--file_list", make_list({"stale.fasta": ">x\nMKVLA\n"}))
     assert_clean_failure(result, "stale")
+
+
+def test_reports_embeddings_of_the_wrong_width(run_script, make_list, write_embeddings, install):
+    write_embeddings("wide", 5)
+    np.save(install / "inputs" / "wide_esm.npy", np.zeros((5, 1024), dtype=np.float32))
+    result = run_script("run_inference.py", "--file_list", make_list({"wide.fasta": ">x\nMKVLA\n"}))
+    assert_clean_failure(result, "wide_esm.npy")
+
+
+def test_reports_unreadable_embeddings(run_script, make_list, write_embeddings, install):
+    write_embeddings("corrupt", 5)
+    (install / "inputs" / "corrupt_esm.npy").write_bytes(b"not numpy")
+    result = run_script("run_inference.py", "--file_list", make_list({"corrupt.fasta": ">x\nMKVLA\n"}))
+    assert_clean_failure(result, "corrupt_esm.npy")
+
+
+def test_rejects_two_files_with_the_same_protein_name(run_script, tmp_path):
+    paths = []
+    for folder in ("a", "b"):
+        (tmp_path / folder).mkdir()
+        path = tmp_path / folder / "same.fasta"
+        path.write_text(">x\nMKVLA\n")
+        paths.append(str(path))
+    file_list = tmp_path / "dupes.txt"
+    file_list.write_text("\n".join(paths) + "\n")
+    assert_clean_failure(run_script("run_inference.py", "--file_list", file_list), "duplicate")
+
+
+def test_reports_unwritable_save_path_before_inference(run_script, simple_list, tmp_path):
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0o500)
+    try:
+        result = run_script("run_inference.py", "--file_list", simple_list, "--save_path", locked)
+    finally:
+        locked.chmod(0o700)
+    assert_clean_failure(result, "locked")
 
 
 @pytest.mark.parametrize(

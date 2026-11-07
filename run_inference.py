@@ -21,6 +21,7 @@ REPO_DIR = Path(__file__).resolve().parent
 
 CLASS_ENSEMBLE = ((Network1, 'model1.pt'), (Network2, 'model2.pt'), (Network3, 'model3.pt'))
 REG_ENSEMBLE = ((Network4, 'model4.pt'), (Network5, 'model5.pt'), (Network6, 'model6.pt'))
+EMBEDDING_WIDTHS = {'esm': 1280, 'pt': 1024}
 
 
 def parse_args():
@@ -35,20 +36,26 @@ def parse_args():
     parser.add_argument('--checkpoints_dir', default=REPO_DIR / 'checkpoints', type=Path,
                         help='directory holding model1.pt to model6.pt '
                              '(default: checkpoints/ next to this script)')
+    parser.add_argument('--check_only', action='store_true',
+                        help='check everything except the embeddings, then exit without predicting')
     return parser.parse_args()
 
 
 def check_embeddings(proteins):
     for path, seq in proteins:
-        for kind in ('esm', 'pt'):
+        for kind, width in EMBEDDING_WIDTHS.items():
             embedding = embedding_path(protein_name(path), kind)
             if not embedding.is_file():
                 sys.exit(f'error: missing embedding {embedding}, '
                          'generate it with run_SPOT-1D-LM.sh')
-            rows = np.load(embedding, mmap_mode='r').shape[0]
-            if rows != len(seq):
-                sys.exit(f'error: {embedding} has {rows} rows but {path} has {len(seq)} residues, '
+            try:
+                shape = np.load(embedding, mmap_mode='r').shape
+            except (OSError, ValueError) as error:
+                sys.exit(f'error: cannot read {embedding} ({error}), '
                          'regenerate it with run_SPOT-1D-LM.sh')
+            if shape != (len(seq), width):
+                sys.exit(f'error: {embedding} has shape {shape} but {path} needs '
+                         f'{(len(seq), width)}, regenerate it with run_SPOT-1D-LM.sh')
 
 
 def check_inputs(args):
@@ -63,11 +70,14 @@ def check_inputs(args):
                  + '\n  '.join(missing))
 
     proteins = load_proteins(args.file_list)
-    check_embeddings(proteins)
+    if not args.check_only:
+        check_embeddings(proteins)
     try:
         os.makedirs(args.save_path, exist_ok=True)
     except OSError as error:
         sys.exit(f'error: {error}')
+    if not os.access(args.save_path, os.W_OK):
+        sys.exit(f'error: cannot write to {args.save_path}')
     return [path for path, _ in proteins]
 
 
@@ -84,6 +94,8 @@ def load_ensemble(ensemble, checkpoints_dir, device):
 def main():
     args = parse_args()
     path_list = check_inputs(args)
+    if args.check_only:
+        return
 
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
