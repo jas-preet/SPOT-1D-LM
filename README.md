@@ -18,9 +18,9 @@ SPOT-1D-LM predicts per-residue structural properties from a protein sequence. I
 ## Requirements
 
 - Python 3 (tested with 3.12) and the packages in `requirements.txt`
-- About 32 GB of RAM to generate embeddings, the amount this was originally tested with
+- About 16 GB of RAM to generate embeddings on CPU (measured peak: 12.7 GB the first time ProtT5 loads, then 9.9 GB with sequences up to 1,022 residues)
 - About 1 GB of RAM for the prediction step on its own (measured peak: 0.7 GB for a 118-residue protein)
-- Several GB of disk space, because ESM-1b and ProtT5 are downloaded the first time they run
+- About 30 GB of disk space, because ESM-1b (7 GB) and ProtT5 (21 GB) are downloaded the first time they run
 - Optional: an NVIDIA GPU with CUDA
 
 ## Installation

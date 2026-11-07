@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 import sys
 
 import numpy as np
@@ -11,6 +12,8 @@ from dataset.data_functions import (INPUTS_DIR, check_device, embedding_path, lo
 
 # ESM-1b has 1024 positions, two of which hold the start and end tokens
 ESM_MAX_RESIDUES = 1022
+# Letters ESM-1b cannot encode, such as J, are treated as unknown
+OUTSIDE_ESM_ALPHABET = re.compile(r"[^LAGVSERTIDPKQNFYMHWCXBUZO.-]")
 
 
 def parse_args():
@@ -45,7 +48,7 @@ def main():
 
     for prot_path, seq in tqdm(proteins):
         prot_name = protein_name(prot_path)
-        _, _, batch_tokens = batch_converter([(prot_name, seq)])
+        _, _, batch_tokens = batch_converter([(prot_name, OUTSIDE_ESM_ALPHABET.sub("X", seq))])
         with torch.no_grad():
             results = model(batch_tokens.to(args.device), repr_layers=[33])
         embedding = results["representations"][33][0, 1: len(seq) + 1].cpu().numpy()

@@ -30,6 +30,12 @@ def test_reports_malformed_fasta_by_name(run_script, make_list, script, suffix, 
     assert "bad.fasta" in result.stderr
 
 
+def test_esm_treats_letters_outside_its_alphabet_as_unknown(run_script, make_list, install):
+    result = run_script("generate_esm.py", "--file_list", make_list({"j.fasta": ">j\nMKJVA\n"}))
+    assert result.returncode == 0, result.stderr
+    assert np.load(install / "inputs" / "j_esm.npy").shape == (5, 1280)
+
+
 def test_esm_rejects_sequences_over_its_limit_by_name(run_script, make_list):
     fasta = ">long\n" + "A" * 1023 + "\n"
     result = run_script("generate_esm.py", "--file_list", make_list({"long.fasta": fasta}))
