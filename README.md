@@ -4,6 +4,7 @@
 
 [![Paper](https://img.shields.io/badge/Scientific%20Reports-2022-1f6feb)](https://doi.org/10.1038/s41598-022-11684-w)
 [![Model on Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-checkpoints-ffcc4d)](https://huggingface.co/Jas-preet/SPOT-1D-LM)
+[![Dataset on Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-dataset-ffcc4d)](https://huggingface.co/datasets/Jas-preet/SPOT-datasets)
 [![Tests](https://github.com/jas-preet/SPOT-1D-LM/actions/workflows/tests.yml/badge.svg)](https://github.com/jas-preet/SPOT-1D-LM/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -269,7 +270,18 @@ The embeddings in `inputs/` are plain NumPy arrays (`L x 1280` for ESM-1b, `L x 
 
 ## Dataset
 
-The download above also contains the data behind this work: `fasta`, `dssp`, `hse` and `theta` folders with 39,484 files each, plus train, validation and test lists in `lists`. To extract everything, including the checkpoints archive:
+The training, validation and test data, with the exact splits from the paper and per-residue labels (secondary structure, ASA, angles, HSE and contact number), are on Hugging Face as [Jas-preet/SPOT-datasets](https://huggingface.co/datasets/Jas-preet/SPOT-datasets) (configuration `spot-1d-lm`, the default):
+
+```python
+from datasets import load_dataset
+
+ds = load_dataset("Jas-preet/SPOT-datasets", "spot-1d-lm", revision="v1.0")
+print(ds)
+```
+
+`revision="v1.0"` pins the exact files, so results stay reproducible.
+
+The checkpoint download above also contains the original files: `fasta`, `dssp`, `hse` and `theta` folders with 39,484 files each, plus train, validation and test lists in `lists`. To extract everything, including the checkpoints archive:
 
 ```bash
 tar -xzf spot_1d_lm.tar.gz
